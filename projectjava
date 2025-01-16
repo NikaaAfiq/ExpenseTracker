@@ -1,0 +1,274 @@
+/*
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Main.java to edit this template
+ */
+package expensetracker;
+
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.Scanner;
+import java.util.*;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+
+public class ExpenseTracker {
+
+    private static final String FILE_NAME = "expenses10.txt";
+
+    public static int getNextID() {
+
+        int maxID = 0; // Default starting ID
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(FILE_NAME))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (line.startsWith("ID:")) {
+                    String[] parts = line.split(":");
+                    int currentID = Integer.parseInt(parts[1].trim());
+                    if (currentID > maxID) {
+                        maxID = currentID; // Track the highest ID
+                    }
+                }
+            }
+        } catch (IOException e) {
+            System.out.println("Error reading file for ID generation: " + e.getMessage());
+        }
+
+        return maxID + 1; // Next ID is the highest + 1
+    }
+
+    public static void CreateNew(Scanner scanner) {
+        try (FileWriter writer = new FileWriter(FILE_NAME, true)) {
+            System.out.println("Creating a new expense record...");
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+            LocalDate date = null;
+
+            System.out.println("Enter the name of your expense (Press enter to skip):");
+            String exname = scanner.nextLine();
+            exname = scanner.nextLine();
+
+            System.out.println("Enter a date in the format yyyy-MM-dd:");
+            while (date == null) {
+                try {
+                    String input = scanner.nextLine();
+                    date = LocalDate.parse(input, formatter);
+                    System.out.println("The date entered: " + date);
+                } catch (DateTimeParseException e) {
+                    System.out.println("Invalid date format. Please try again.");
+                }
+            }
+
+            int amount = 0;
+            System.out.println("Enter the number of expenses you want to provide: ");
+            while (amount <= 0) {
+                if (scanner.hasNextInt()) {
+                    amount = scanner.nextInt();
+                    scanner.nextLine(); // Consume the newline character after nextInt()
+                } else {
+                    System.out.println("Invalid amount. Please enter a valid number.");
+                    scanner.nextLine(); // Clear invalid input
+                }
+            }
+
+            String[] expense = new String[amount];
+            for (int i = 0; i < amount; i++) {
+                System.out.println("Expense number " + (i + 1) + ":");
+                expense[i] = scanner.nextLine();
+            }
+
+            double sum = 0;
+            double[] price = new double[amount];
+            for (int i = 0; i < amount; i++) {
+                System.out.println("Enter the amount for " + expense[i]);
+                System.out.print("RM: ");
+                while (!scanner.hasNextDouble()) {
+                    System.out.println("Please enter a valid amount.");
+                    scanner.next(); // Clear invalid input
+                }
+                price[i] = scanner.nextDouble();
+                sum += price[i];
+                scanner.nextLine(); // Consume the newline character after nextDouble()
+            }
+
+            System.out.println("\nYour expenses are: ");
+            for (int i = 0; i < amount; i++) {
+                System.out.println(expense[i] + " - RM" + price[i]);
+            }
+            System.out.println("Total expense on " + date + " is RM" + sum);
+            System.out.println("Saving expense name: " + exname);
+
+            int uniqueID = getNextID();
+            writer.write("ID:" + uniqueID + "\nExpense Name: " + exname + "\nDate:" + date + "\nExpenses:");
+            for (int i = 0; i < amount; i++) {
+                writer.write(expense[i] + " = RM" + price[i] + "\n");
+            }
+            writer.write("Sum total: RM" + sum + "\n-------------------------\n");
+            writer.close();
+
+        } catch (IOException e) {
+            System.out.println("Error saving expense: " + e.getMessage());
+        }
+
+        System.out.println("All expenses:");
+        try (BufferedReader reader = new BufferedReader(new FileReader(FILE_NAME))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                System.out.println(line);
+            }
+        } catch (IOException e) {
+            System.out.println("Error reading expenses: " + e.getMessage());
+        }
+    }
+
+    public static void View() {
+        System.out.println("All expenses:");
+        try (BufferedReader reader = new BufferedReader(new FileReader(FILE_NAME))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                System.out.print(line + "\n");
+            }
+            System.out.println();
+        } catch (IOException e) {
+            System.out.println("Error reading expenses: " + e.getMessage());
+        }
+    }
+
+    public static void Search() {
+        Scanner scanner = new Scanner(System.in);
+        System.out.print("Enter the date to search for expenses (format yyyy-MM-dd): ");
+        String searchDate = scanner.nextLine();
+
+        boolean recordFound = false;
+        StringBuilder expenseDetails = new StringBuilder();
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(FILE_NAME))) {
+            String line;
+            String currentID = null;
+            String currentName = null;
+            boolean isReading = false;
+
+            while ((line = reader.readLine()) != null) {
+                if (line.startsWith("ID:")) {
+                    currentID = line;  // Capture the ID
+                }
+                if (line.startsWith("Expense Name: ")) {
+                    currentName = line;  // Capture the ID
+                }
+                if (line.startsWith("Date:") && line.contains(searchDate)) {
+                    isReading = true;  // Start capturing details if the date matches
+                    recordFound = true;
+                    expenseDetails.append(currentID).append("\n");
+                    expenseDetails.append(currentName).append("\n");// Add the captured ID
+                }
+                if (isReading) {
+                    expenseDetails.append(line).append("\n");
+                    if (line.startsWith("---------------------")) {
+                        isReading = false;  // Stop capturing at the end of a record
+                    }
+                }
+            }
+        } catch (IOException e) {
+            System.out.println("Error reading expenses: " + e.getMessage());
+        }
+
+        if (recordFound) {
+            System.out.println("Expense details found on " + searchDate + ":\n" + expenseDetails.toString());
+        } else {
+            System.out.println("No records found for the date " + searchDate);
+        }
+    }
+
+    public static void Delete() {
+        Scanner scanner = new Scanner(System.in);
+        List<String> lines = new ArrayList<>();
+        boolean recordFound = false;
+
+        System.out.print("Enter the ID of the expense that you want to delete: ");
+        String deleteId = scanner.nextLine();
+        lines.removeIf(line -> line.contains(deleteId));
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(FILE_NAME))) {
+            String line;
+            boolean isDeleting = false;
+
+            while ((line = reader.readLine()) != null) {
+                if (line.startsWith("ID:") && line.contains(deleteId)) {
+                    isDeleting = true; // Start skipping this block
+                    recordFound = true;
+                    continue; // Skip the "ID:" line
+                }
+                if (isDeleting && line.startsWith("---------------------")) {
+                    isDeleting = false; // End of the block
+                    continue; // Skip the delimiter
+                }
+                if (!isDeleting) {
+                    lines.add(line); // Add all other lines back
+                }
+            }
+        } catch (IOException e) {
+            System.out.println("Error reading expenses: " + e.getMessage());
+            return;
+        }
+
+        if (!recordFound) {
+            System.out.println("No record found with ID " + deleteId + ". Deletion canceled");
+            return;
+        }
+
+        // Write the remaining lines back to the file
+        try (FileWriter writer = new FileWriter(FILE_NAME)) {
+            for (String line : lines) {
+                writer.write(line + "\n");
+            }
+            System.out.println("Record with ID " + deleteId + " deleted.");
+        } catch (IOException e) {
+            System.out.println("Error writing to the file: " + e.getMessage());
+        }
+    }
+
+    public static void main(String[] args) {
+        Scanner scanner = new Scanner(System.in);
+
+        System.out.println("--------Welcome User!--------\n---Expense Tracker System---");
+
+        char choice;
+
+        // Keep looping until the user chooses to exit
+        while (true) {
+            System.out.println("Choose action: \n C = Create new expense \n V = View the expenses\n S = Search for an expense \n D = Delete an existing record \n E = Exit menu");
+            choice = scanner.next().toUpperCase().charAt(0);
+
+            // Handle invalid input
+            while (choice != 'C' && choice != 'V' && choice != 'D' && choice != 'E' && choice != 'S') {
+                System.out.println("Wrong Input! Input one of these: \n C = Create new expense \n V = View the expenses \n S = Search for an expense \n D = Delete an existing record \n E = Exit menu");
+                choice = scanner.next().toUpperCase().charAt(0);
+            }
+
+            switch (choice) {
+                case 'C':
+                    CreateNew(scanner);
+                    break;
+                case 'V':
+                    View();
+                    break;
+                case 'S':
+                    Search();
+                    break;
+                case 'D':
+                    Delete();
+                    break;
+                case 'E':
+                    System.out.println("Exiting the program...");
+                    System.out.println("Thank you for using Expense Tracker System.");
+                    scanner.close();
+                    return; // Exit the program
+                default:
+                    System.out.println("Invalid answer, try again.");
+                    break;
+            }
+        }
+    }
+}
